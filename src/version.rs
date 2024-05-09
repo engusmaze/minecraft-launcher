@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
+use tracing::info;
 use std::collections::{HashMap, HashSet};
 
 use crate::version_list::VersionType;
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum RuleAction {
     Allow,
@@ -34,7 +35,7 @@ pub struct OS {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Rule {
-    pub action: String,
+    pub action: RuleAction,
     pub features: Option<HashMap<String, bool>>,
     pub os: Option<OS>,
 }
@@ -42,7 +43,7 @@ pub struct Rule {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct RuleList(Vec<Rule>);
 impl RuleList {
-    fn evaluate(&self, feature_set: &HashSet<String>) -> bool {
+    pub fn evaluate(&self, feature_set: &HashSet<String>) -> bool {
         fn matches_os_name(os_name: OSName) -> bool {
             return match std::env::consts::OS {
                 "linux" => match os_name {
@@ -69,42 +70,40 @@ impl RuleList {
             };
         }
 
-        let mut v = true;
+        if self.0.len() > 0 {
+            let action = self.0[0].action;
+            let result = match action {
+                RuleAction::Allow => true,
+                RuleAction::Disallow => false,
+            };
 
-        'check: for rule in &self.0 {
-            if let Some(os) = &rule.os {
-                if let Some(os_name) = os.name {
-                    if !matches_os_name(os_name) {
-                        v = false;
-                        break 'check;
+            for rule in &self.0 {
+                if let Some(os) = &rule.os {
+                    if let Some(os_name) = os.name {
+                        if !matches_os_name(os_name) {
+                            return !result;
+                        }
+                    }
+                    if let Some(arch) = os.arch {
+                        if !matches_arch(arch) {
+                            return !result;
+                        }
                     }
                 }
-                if let Some(arch) = os.arch {
-                    if !matches_arch(arch) {
-                        v = false;
-                        break 'check;
+
+                if let Some(features) = &rule.features {
+                    for (feature, &enabled) in features {
+                        if feature_set.contains(feature) != enabled {
+                            return !result;
+                        }
                     }
                 }
             }
-    
-            if let Some(features) = &rule.features {
-                for (feature, &enabled) in features {
-                    if feature_set.contains(feature) == enabled {
-                        v = false;
-                        break 'check;
-                    }
-                }
-            }
+
+            result
+        } else {
+            true
         }
-
-        v
-        // if rule.action == "allow" {
-        //     include_argument = true;
-        //     break;
-        // } else if rule.action == "disallow" {
-        //     include_argument = false;
-        //     break;
-        // }
     }
 }
 
@@ -147,7 +146,7 @@ impl ArgumentList {
     pub fn construct_arguments(&self, features: &HashSet<String>) -> Vec<String> {
         let mut result = Vec::new();
 
-         for arg in &self.0 {
+        for arg in &self.0 {
             match arg {
                 Argument::Argument(value) => {
                     result.push(value.clone());

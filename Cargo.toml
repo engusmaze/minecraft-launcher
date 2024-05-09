@@ -9,7 +9,7 @@ strip = true
 [dependencies]
 reqwest = { version = "0.12.2", features = [
     "rustls-tls",
-    "json",
+    # "json",
 ], default-features = false }
 anyhow = "1.0.81"
 serde = { version = "1.0.197", features = ["derive"] }
@@ -17,3 +17,5 @@ serde_json = "1.0.115"
 tokio = { version = "1.37.0", features = ["full"] }
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
+sha1 = "0.10.6"
+uuid = { version = "1.8.0", features = ["v3"] }

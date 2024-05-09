@@ -27,6 +27,7 @@ pub struct FullVersionInfo {
     pub compliance_level: usize,
 }
 
+#[derive(Deserialize, Serialize)]
 pub struct VersionInfo {
     pub r#type: VersionType,
     pub url: String,
